@@ -132,3 +132,5 @@ describe('Update user', () => {
 			.expect(400, /required/i)
 	})
 })
+
+// TODO : Make connected user test

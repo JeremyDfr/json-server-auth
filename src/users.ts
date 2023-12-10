@@ -9,12 +9,17 @@ import {
 	MIN_PASSWORD_LENGTH,
 	SALT_LENGTH,
 } from './constants'
+import { decode } from 'jsonwebtoken'
 
 interface User {
 	id: string
 	email: string
 	password: string
 	[key: string]: any // Allow any other field
+}
+
+interface JwtPayload {
+	email: string
 }
 
 type ValidateHandler = ({ required }: { required: boolean }) => Handler
@@ -165,12 +170,32 @@ const update: Handler = (req, res, next) => {
 		.catch(next)
 }
 
+const me: Handler = (req, res, next) => {
+	const token = req.headers.authorization?.replace('Bearer ', '')
+
+	if (!token) {
+		throw Error('You must be connected')
+	}
+
+	const { email } = jwt.verify(token, JWT_SECRET_KEY) as JwtPayload
+	const { db } = req.app
+
+	if (db == null) {
+		throw Error('You must bind the router db to the app')
+	}
+
+	const user = db.get('users').find({ email }).value()
+	const { password: _, ...userWithoutPassword } = user
+	res.status(200).jsonp({ user: userWithoutPassword })
+}
+
 /**
  * Users router
  */
 // Must match routes with and without guards
 export default Router()
 	.use(bodyParsingHandler)
+	.get('/me', validate({ required: false }), me)
 	.post('/users|register|signup', validate({ required: true }), create)
 	.post('/[640]{3}/users', validate({ required: true }), create)
 	.post('/login|signin', validate({ required: true }), login)
